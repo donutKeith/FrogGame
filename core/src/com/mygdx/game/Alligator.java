@@ -4,6 +4,7 @@ package com.mygdx.game;
         import com.badlogic.gdx.Gdx;
         import com.badlogic.gdx.graphics.g2d.Animation;
         import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+        import com.badlogic.gdx.graphics.g2d.TextureAtlas;
         import com.badlogic.gdx.graphics.g2d.TextureRegion;
 
 /**
@@ -20,36 +21,24 @@ public class Alligator extends Enemy {
     private boolean fromTop;
     private LilyPad targetPad;
 
-    public Alligator(float speed, float range, LilyPad pad, String image, float waitTime) {
+    public Alligator(float speed, float range, LilyPad pad, AtlasParser a, float waitTime) {
         super(speed);
         this.range = range;
         this.targetPad = pad;
         this.waitTime = waitTime;
         waitTimer = this.waitTime;
-        atkElapsedTime = 0;
-        moveAniElapsedTime = 0;
-        fromTop = false;
-
+        Initialize();
         // Set up Animations (Start) -----------------------------------------------------------------------
-        TextureRegion[] eatAnimationRegions = new TextureRegion[numAtkFrames];
-        TextureRegion[] movementRegions = new TextureRegion[numMoveFrames];
+        eatAnimation = a.GetAnimationName("GatorGrab");
+//        atkDuration = eatAnimation.getAnimationDuration();
 
-        for (int i = 0; i < numAtkFrames; i++) {
-            eatAnimationRegions[i] = atlas.findRegion(String.format("GatorGrab%04d", i + 1));
-        }
-
-        eatAnimation = new Animation(1 / 20f, eatAnimationRegions);//new Animation(1/20f,atlas.getRegions());
-        atkDuration = eatAnimation.getAnimationDuration();
-
-        for (int i = 0; i < numMoveFrames; i++) {
-            movementRegions[i] = atlas.findRegion(String.format("WaterRipple%04d", i + 1));
-        }
-        moveAnimation = new Animation(1/20f, movementRegions);
+        moveAnimation = a.GetAnimationName("WaterRipple");
+        
         // Set up Animations (End) -------------------------------------------------------------------------
 
     }
 
-    public void Move(SpriteBatch sb){
+    public void Move(){
         //enemyImg.setCenter(targetPad.GetXPos(), ycur);
         if(fromTop){
             ycur -= speed * Gdx.graphics.getDeltaTime();
@@ -58,11 +47,16 @@ public class Alligator extends Enemy {
             ycur += speed * Gdx.graphics.getDeltaTime();
         }
 
-        sb.draw(moveAnimation.getKeyFrame(moveAniElapsedTime, true), targetPad.GetXPos() - (animationWidth / 2f), ycur, animationWidth, animationHeight);
-        moveAniElapsedTime += Gdx.graphics.getDeltaTime();
     }
 
-    public void Attack(SpriteBatch sb){
+    public void DrawMovementAnimation(){
+
+        sb.draw(moveAnimation.getKeyFrame(moveAniElapsedTime, true), targetPad.GetXPos() - (animationWidth / 2f), ycur, animationWidth, animationHeight);
+        moveAniElapsedTime += Gdx.graphics.getDeltaTime();
+        System.out.println( "Move Time compared to game timer:" + moveAniElapsedTime + " " + GameScreen.CURTIME);
+    }
+
+    public void Attack(){
         atkElapsedTime += Gdx.graphics.getDeltaTime();
 
         if (!eatAnimation.isAnimationFinished(atkElapsedTime)) {
@@ -79,16 +73,19 @@ public class Alligator extends Enemy {
     }
 
     public void Initialize(){
-
+        atkElapsedTime = 0;
+        moveAniElapsedTime = 0;
+        fromTop = false;
     }
 
     public LilyPad GetTargetPad(){
         return targetPad;
     }
 
-    public void DrawAtkingEnemy(SpriteBatch sb){
+    public void DrawAtkingEnemy(){
         if (Math.abs(ycur - targetPad.GetYPos()) > range) {
-            Move(sb);
+            Move();
+            DrawMovementAnimation();
         }
         else {
             if(waitTimer > 0){
@@ -97,7 +94,7 @@ public class Alligator extends Enemy {
             }
             else{
                 if(isAttacking) {
-                    Attack(sb);
+                    Attack();
                 }
                 else{
                     waitTimer = waitTime;

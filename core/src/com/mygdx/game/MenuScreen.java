@@ -10,6 +10,7 @@ package com.mygdx.game;
 public class MenuScreen implements Screen {
 
     private FeedTheFrog myGame;
+    public GameScreen gScreen;
 
     public MenuScreen (FeedTheFrog myGame){
 
@@ -27,7 +28,8 @@ public class MenuScreen implements Screen {
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
         if(Gdx.input.justTouched()) {
-            myGame.setScreen(myGame.gScreen);
+            gScreen = new GameScreen(myGame,1);
+            myGame.setScreen(gScreen);
         }
         //myGameScreen.render(delta);
     }

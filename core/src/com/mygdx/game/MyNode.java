@@ -21,6 +21,10 @@ public class MyNode<T> {
         this.id = id;
     }
 
+    public void Set(T obj){
+        this.obj = obj;
+    }
+
     public int getID(){return this.id;}
 
     public MyNode<T> GetNext(){

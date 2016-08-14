@@ -6,7 +6,7 @@ package com.mygdx.game;
 /**
  * Created by Keith on 9/20/2015.
  */
-public class LilyPadManager{
+public class LilyPadManager extends DrawableGameObject{
     private LilyPad[] pads;
     private int currentPad;
     private OrthographicCamera cam;
@@ -43,13 +43,13 @@ public class LilyPadManager{
         //pads[currentPad].setRotating(false);
     }
 
-    public void DrawAllPads(SpriteBatch sb){
+    public void Draw(){
         int counter = 0;
         for(LilyPad i : pads){
             if(!i.GetIsGone() && i.GetFrogOnPad() == null){//!i.GetIsBeingUsedByPlayer() && !i.GetIsBeingUsedByEnemyFrog()){
                 counter++;
             }
-            i.DrawPad(sb);
+            i.Draw();
 
         }
 

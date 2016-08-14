@@ -8,20 +8,23 @@ package com.mygdx.game;
 public class EnemyFrog extends Frog{
 
     private float toungeWidth, tipRadius, toungeSpeed, difficulty;
-    protected int layer;
+    //private MyObjectList<EnemyFrog> enemyFrogList;
+    private EnemyList enemyList;
 
     public EnemyFrog(float diameter,
                      float toungeWidth, float tipRadius, float toungeSpeed, float maxStamnia, float staminaLostPerJump,
                      String frogImage,
                      LilyPadManager lp,
-                     FoodList fl, float difficulty){
-        super(diameter, maxStamnia, staminaLostPerJump, frogImage, lp, fl);
+                     FoodList fl, EnemyList enemyList, float difficulty,
+                     AtlasParser a){
+        super(diameter, maxStamnia, staminaLostPerJump, frogImage, lp, fl, a);
         this.toungeWidth = toungeWidth;
         this.tipRadius = tipRadius;
         this.toungeSpeed = toungeSpeed;
-
+        this.enemyList = enemyList;
         this.difficulty = difficulty;
-        this.layer = 0;
+
+        //this.enemyFrogList = efl;
 
         staminaBarMaxWidth = GameScreen.GAME_WIDTH / 10;
         getStaminaBarMaxHeight = 2;
@@ -61,26 +64,24 @@ public class EnemyFrog extends Frog{
         staminaBar.setPosition(frogImg.getX() - (staminaBarMaxWidth / 2) + (frogImg.getWidth() / 2), frogImg.getY() - frogImg.getHeight() / 4);
     }
 
-    @Override
-    public void Draw(SpriteBatch sb) {
-
-        myTounge.SetPositionByOrigin(GetCenterX(), GetCenterY());
-        myTounge.SetRotation(frogImg.getRotation());
-
-        myTounge.Draw(sb);
-        frogImg.draw(sb);
+    public void DrawFrog() {
+        if (isAlive ) {
+            myTounge.SetPositionByOrigin(GetCenterX(), GetCenterY());
+            myTounge.SetRotation(frogImg.getRotation());
+            myTounge.DrawTongue(sb);
+            frogImg.draw(sb);
+        }
+        else{ //Need isAlive check inside DrawFrog so we can remove enemy frogs from the list player
+            //this.enemyFrogList.Remove(this);
+            enemyList.DecrementFrogCount();
+        }
     }
 
     public void Signal_StandardJump(boolean jumpLeft, boolean attackAllowed, boolean normalJump){// Called once when user hits jump button left or right
         // The standard jump moves the frog from it's current lilypad to the next open (EMPTY) pad. Meaning you cannot jump on a pad that has a frog on it. If you want to do that you need to do the AdvancedJump
         boolean canFrogMove;
 
-        if(jumpLeft){
-            frogImg.setRotation(180);
-        }
-        else{
-            frogImg.setRotation(0);
-        }
+        faceJumpingDirection(jumpLeft);
 
         percentageCompleteJump = 0;
 
@@ -107,7 +108,7 @@ public class EnemyFrog extends Frog{
             numPadsJumping = 0;
         }
     }
-
+/*
     public void Attack(SpriteBatch sb){
         layer = 1;
     }
@@ -115,4 +116,5 @@ public class EnemyFrog extends Frog{
     public void Defend(SpriteBatch sb){
         layer = 0;
     }
+*/
 }

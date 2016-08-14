@@ -11,6 +11,7 @@ public class PlayerFrogTounge extends FrogTounge{
     protected Color myColor;
 
     private boolean aimIsOn, fireTongue;
+    private Grabable item;
     private ControlBar controller;
 
     public PlayerFrogTounge(float xPos, float yPos, float tipSize, float width, float speed, Frog frog, FoodList fl, ControlBar cb, boolean useAimer){
@@ -33,7 +34,13 @@ public class PlayerFrogTounge extends FrogTounge{
         isAiming = b;
     }
 
-    public void Draw(SpriteBatch sb){
+    @Override
+    public void DrawTongue(SpriteBatch sb){
+
+        this.body.DrawStaminaBar(); // This needs to be drawn first, under the tongue
+        if (item != null && item.GetIsAlive()){
+            item.Draw();
+        }
 
         if (fireTongue || (isAiming && aimIsOn)) {
             time = 0;// If we just started time should be 0
@@ -54,7 +61,7 @@ public class PlayerFrogTounge extends FrogTounge{
 
             } else {    // Aiming
                 thisTounge.setColor(1, 0, 0, .5f);
-                tip.setColor(1, 0, 0, .5f);
+                tip.setColor(1, 0, 0, 1f);
             }
         }
 
@@ -70,7 +77,7 @@ public class PlayerFrogTounge extends FrogTounge{
                 if (curDist == magnitude) {
                     fullyextended = true;
                     startTime = GameScreen.CURTIME;
-                    time = 1; // Make sure we set this to 1 just incase we increment past 1
+                    time = 1; // Make sure we set this to 1 just in case we increment past 1
                 }
             }
             else {
@@ -81,7 +88,7 @@ public class PlayerFrogTounge extends FrogTounge{
                 if (curDist == 0) {
                     fullyextended = false;
                     shootTounge = false;
-                    time = 0; // Make sure we set this to 0 just incase we decrement past 0
+                    time = 0; // Make sure we set this to 0 just in case we decrement past 0
                 }
             }
         }

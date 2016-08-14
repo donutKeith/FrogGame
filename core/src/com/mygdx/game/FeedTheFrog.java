@@ -4,13 +4,13 @@ import com.badlogic.gdx.Game;
 
 public class FeedTheFrog extends Game {
 
-	GameScreen gScreen;
+
 	MenuScreen menuScreen;
 
 	@Override
 	public void create () {
 		menuScreen = new MenuScreen(this);
-		gScreen = new GameScreen(this,1);
+
 		setScreen(menuScreen);
 
 	}

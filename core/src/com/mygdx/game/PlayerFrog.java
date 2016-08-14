@@ -3,9 +3,6 @@ package com.mygdx.game;
         import com.badlogic.gdx.Gdx;
         import com.badlogic.gdx.InputMultiplexer;
         import com.badlogic.gdx.graphics.OrthographicCamera;
-        import com.badlogic.gdx.graphics.g2d.Sprite;
-        import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-
 /**
  * Created by Keith on 11/21/2015.
  */
@@ -14,7 +11,10 @@ public class PlayerFrog extends Frog{
     private ControlBar controller;
     private OrthographicCamera followCam;
     private boolean firstPunchOnThisSide;
-    private float previousXpos;
+    private float atkStrength;
+    private boolean  turningClockWise, turningCounterClockWise;
+
+    private float elapsedTimeNormalAnimation, elapsedTimeShoot, elapsedTimeAiming;
 
     public PlayerFrog(float frogDiameter,
                       float toungeWidth, float tipRadius, float toungeSpeed, float maxStamina, float staminaLostPerJump,
@@ -23,14 +23,20 @@ public class PlayerFrog extends Frog{
                       FoodList fl,              // List of grabable objects by this frog
                       OrthographicCamera cam,
                       InputMultiplexer mp,
-                      boolean useAimer)         // Flag to determine if we are going to show the tounge aimer
+                      boolean useAimer,
+                      AtlasParser a)         // Flag to determine if we are going to show the tounge aimer
     {
-        super(frogDiameter, maxStamina, staminaLostPerJump, frogImage, lp, fl);
+        super(frogDiameter, maxStamina, staminaLostPerJump, frogImage, lp, fl, a);
+
+        turningClockWise= false;
+        turningCounterClockWise = false;
+
         staminaBarMaxWidth = GameScreen.GAME_WIDTH / 4;
         getStaminaBarMaxHeight = 2;
         staminaBarXOffset = 10;
         followCam = cam;
         frogImg.setCenter(lilypads.getPadArr()[myCurPad].GetXPos(), lilypads.getPadArr()[myCurPad].GetYPos());
+        frogImg.setOriginCenter();
         controller = new ControlBar(this, lilypads, followCam, mp);
 
         enemyOnLeft = false;
@@ -45,6 +51,8 @@ public class PlayerFrog extends Frog{
         myTounge = new PlayerFrogTounge(GetCenterX(), GetCenterY(), tipRadius, toungeWidth, toungeSpeed, this, myFood, controller, useAimer);
         staminaBar.setSize(staminaBarMaxWidth, getStaminaBarMaxHeight);
         this.followCam.position.set(GetCenterX(), GetCenterY(), 0);
+
+        atkStrength = 50;
 
     }
 
@@ -69,12 +77,8 @@ public class PlayerFrog extends Frog{
     // The standard jump moves the frog from it's current lilypad to the next open (EMPTY) pad. Meaning you cannot jump on a pad that has a frog on it. If you want to do that you need to do the AdvancedJump
         boolean canFrogMove;
 
-        if(jumpLeft){
-            frogImg.setRotation(180);
-        }
-        else{
-            frogImg.setRotation(0);
-        }
+        faceJumpingDirection(jumpLeft);
+
         controller.turnOn(false);
         percentageCompleteJump = 0;
 
@@ -113,7 +117,7 @@ public class PlayerFrog extends Frog{
 
         if((isLeft && xPosOfHitMarker >= myAtkBar.LeftStart() && xPosOfHitMarker <= myAtkBar.LeftEnd()) || (!isLeft && xPosOfHitMarker >= myAtkBar.RightStart() && xPosOfHitMarker <= myAtkBar.RightEnd())){
             if(firstPunchOnThisSide) {
-                frogIamFighting.curStamina -= 1;
+                frogIamFighting.curStamina -= atkStrength;
                 firstPunchOnThisSide = false;
             }
 
@@ -122,7 +126,7 @@ public class PlayerFrog extends Frog{
             isFighting = false;
             frogIamFighting.isFighting = false;
             Signal_StandardJump(true, false, false);
-            AddOrSubStamina(-10);
+            AddOrSubStamina(-atkStrength);
         }
 
     }
@@ -130,33 +134,51 @@ public class PlayerFrog extends Frog{
     // METHODS that are triggered/called by the controller (end) --------------------------------------------------------------------------------------------
     // ======================================================================================================================================================
 
-    public void Draw(SpriteBatch sb){
+    public void DrawFrog(){
+        if (isAlive) {
+            if (isFighting) {
+                myAtkBar.Draw();
+                xPosOfHitMarker = myAtkBar.getMarkerXPos();
 
-        if(isFighting){
-            xPosOfHitMarker = myAtkBar.DrawAttackBar(sb);
-            //Determine if we have crossed the mid section to reset the boolean first punch
-            if((xPosOfHitMarker >= myAtkBar.GetCenterOfBar() && myAtkBar.GetPrevPosition() < myAtkBar.GetCenterOfBar()) || (xPosOfHitMarker <= myAtkBar.GetCenterOfBar() && myAtkBar.GetPrevPosition() > myAtkBar.GetCenterOfBar())){
-                firstPunchOnThisSide = true;
+                //Determine if we have crossed the mid section to reset the boolean first punch
+                if ((xPosOfHitMarker >= myAtkBar.GetCenterOfBar() && myAtkBar.GetPrevPosition() < myAtkBar.GetCenterOfBar()) || (xPosOfHitMarker <= myAtkBar.GetCenterOfBar() && myAtkBar.GetPrevPosition() > myAtkBar.GetCenterOfBar())) {
+                    firstPunchOnThisSide = true;
+                }
+            }
+            if (!isFighting && !playMoveAnimation) {
+                frogIamFighting = null;
+
+                if (!myTounge.shootTounge) {
+                    controller.turnOn(true);
+                }
+            }
+
+            if (!playMoveAnimation && !playThrownAnimation) {
+                myTounge.DrawTongue(sb);
+                frogImg.draw(sb);
+                if (myTounge.shootTounge) {
+                    //System.out.println("Tongue Shooting animation");
+                    elapsedTimeShoot += Gdx.graphics.getDeltaTime();//sb.draw(GameScreen.atlasParser.GetAnimationName("Test").getKeyFrame(elapsedTimeShoot, true), frogImg.getX(), frogImg.getY(), frogImg.getOriginX(), frogImg.getOriginY(), frogImg.getWidth(), frogImg.getHeight(), frogImg.getScaleX(), frogImg.getScaleY(), frogImg.getRotation());
+
+                } else if (myTounge.isAiming) {
+                    //System.out.println("Tongue Aiming animation");
+                    elapsedTimeAiming += Gdx.graphics.getDeltaTime();
+                    //sb.draw(GameScreen.atlasParser.GetAnimationName("Test").getKeyFrame(elapsedTimeAiming, true), frogImg.getX(), frogImg.getY(), frogImg.getOriginX(), frogImg.getOriginY(), frogImg.getWidth(), frogImg.getHeight(), frogImg.getScaleX(), frogImg.getScaleY(), frogImg.getRotation());
+
+                } else {
+                    //System.out.println("Normal animation");
+                    elapsedTimeNormalAnimation += Gdx.graphics.getDeltaTime();
+                    //sb.draw(GameScreen.atlasParser.GetAnimationName("Test").getKeyFrame(elapsedTimeNormalAnimation, true), frogImg.getX(), frogImg.getY(), frogImg.getOriginX(), frogImg.getOriginY(), frogImg.getWidth(), frogImg.getHeight(), frogImg.getScaleX(), frogImg.getScaleY(), frogImg.getRotation());
+
+                }
             }
         }
-        if(!isFighting && !playMoveAnimation) {
-            frogIamFighting = null;
+        else{
 
-            if (!myTounge.shootTounge) {
-                controller.turnOn(true);
-            }
-            //frogImg.setCenter(lilypads.getPadArr()[myCurPad].GetXPos(), lilypads.getPadArr()[myCurPad].GetYPos());
-
-            myTounge.SetPositionByOrigin(GetCenterX(), GetCenterY());
-            myTounge.SetRotation(frogImg.getRotation());
         }
 
-        if(!playMoveAnimation && !playThrownAnimation) {
-            frogImg.draw(sb);
-        }
-        this.followCam.position.set(GetCenterX(), GetCenterY(), 0);
     }
-
+/*
     public void Attack(SpriteBatch sb){
 
     }
@@ -164,7 +186,7 @@ public class PlayerFrog extends Frog{
     public void Defend(SpriteBatch sb){
 
     }
-
+*/
     public boolean SeeEnemyFrog(boolean onLeft){
         if(onLeft){
             return enemyOnLeft;
@@ -175,11 +197,10 @@ public class PlayerFrog extends Frog{
     }
 
     public void SetStaminaBarPosition(){
-        staminaBar.setPosition(followCam.position.x - followCam.viewportWidth/2f + 2, followCam.position.y - followCam.viewportHeight/2f + 2 );
+        staminaBar.setPosition(followCam.position.x - followCam.viewportWidth / 2f + 2, followCam.position.y - followCam.viewportHeight/2f + 2 );
     }
 
     public ControlBar GetController(){return controller;}
-
     /*public void TurnOffFrogMovement(boolean b){
         controller.turnOn(!b);
     }*/

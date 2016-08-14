@@ -9,6 +9,7 @@ package com.mygdx.game;
         import com.badlogic.gdx.graphics.g2d.BitmapFont;
         import com.badlogic.gdx.graphics.g2d.Sprite;
         import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+        import com.badlogic.gdx.graphics.g2d.TextureAtlas;
         import com.badlogic.gdx.utils.viewport.StretchViewport;
         import com.badlogic.gdx.utils.viewport.Viewport;
 
@@ -19,26 +20,22 @@ package com.mygdx.game;
  */
 public class GameScreen implements Screen {
 
-    public static final float GAME_WIDTH = 200;
+    private static final float ASPECT_RATIO =  (float) Gdx.graphics.getWidth() / (float) Gdx.graphics.getHeight();
     public static final float GAME_HEIGHT = 100;
+    public static final float pixlesPerUnit = Gdx.graphics.getHeight() / GAME_HEIGHT;
+    public static final float GAME_WIDTH = GAME_HEIGHT * 2 * ASPECT_RATIO;  // Game_Width is twice as big as height. This means part of the game width is off the screen.
     public static final int TOP_LAYER = 1;
     public static final int BOTTOM_LAYER = 0;
     public static float CURTIME = 0;
     public static FoodList allFood;
 
-    public final float zoom = 1f;
-
     public static float staminaDecreaseAmt;
-
-    public final float widthRatio = GAME_WIDTH / Gdx.graphics.getWidth();
-    public final float heightRatio = GAME_HEIGHT / Gdx.graphics.getHeight();
 
     public InputMultiplexer inputHandler;
 
-    private SpriteBatch batch;
     private Sprite gameWorldSprite_bg, gameWorldSprite_fg;
 
-    private float aspectRatio;
+
     private OrthographicCamera gameCam;
     private Viewport gameViewport;
 
@@ -49,7 +46,7 @@ public class GameScreen implements Screen {
     private float playerToungeSize, playerToungeSpeed;
     private float player_staminaDecreaseAmtPerJump;
     private static final float player_maxStamina = 100;
-    private float frogWidth, frogHeight;
+    private float frogWidth;
     private String[] foodNames;
     private String[] lilyNames;
     private String playerImage;
@@ -67,6 +64,7 @@ public class GameScreen implements Screen {
     private float randDirChangeTime;
     private float foodMaxSpeed;
     private float difficulty;
+    private float enemySendTime;
 
     private boolean useAimer;
     private boolean atkHappening;
@@ -74,31 +72,44 @@ public class GameScreen implements Screen {
     private FeedTheFrog myGame;
     public static PlayerFrog players;
 
+    private GameWorldImage gameWorld_bg;
+    private GameWorldImage gameWorld_fg;
+
     private int numberPlayers;
 
-    private BitmapFont timerFont;
-    private String timerText, hrs, mins, secs, millis;
+    public static AtlasParser atlasParser;
+
+    private GameWorldImage timer;
+
+
+    protected TextureAtlas atlas;
+    private static final float EXTRA_TIME_AFTER_GAME_OVER = 2; // In seconds
+    private static float endGameTimer = EXTRA_TIME_AFTER_GAME_OVER;
+
+    // Debug =========================================================
+    private boolean sent = true;
 
     public GameScreen(FeedTheFrog thisGame, int numPlayers) {
         atkHappening = false;
         myGame = thisGame;
         numberPlayers = numPlayers;
 // ****** Camera and Viewport variables ******************************************************
-        aspectRatio = (float) Gdx.graphics.getWidth() / (float) Gdx.graphics.getHeight();
-
         gameCam = new OrthographicCamera();
-        gameViewport = new StretchViewport((GAME_HEIGHT * zoom) * aspectRatio, GAME_HEIGHT * zoom, gameCam);
+        gameViewport = new StretchViewport(GAME_HEIGHT  * ASPECT_RATIO, GAME_HEIGHT, gameCam);
         gameViewport.apply();
 //Camera and Viewport variables ==============================================================
 
 // ****** Sprites and Images *****************************************************************
-        batch = new SpriteBatch();
 
         gameWorldSprite_bg = new Sprite(new Texture(Gdx.files.internal("ff_background.png")));
         gameWorldSprite_fg = new Sprite(new Texture(Gdx.files.internal("ff_foreground.png")));
 
         gameWorldSprite_bg.setSize(GAME_WIDTH, GAME_HEIGHT);
         gameWorldSprite_fg.setSize(GAME_WIDTH, GAME_HEIGHT);
+
+        atlas = new TextureAtlas(Gdx.files.internal("TestPack.atlas"));//"Animation.pack"));
+        atlasParser = new AtlasParser(atlas); // Gets all the animations from the atlas ready to be accessed
+        System.out.println("Done parsing");
 //Sprites and Images =========================================================================
 
 // ****** Input event driven logic ***********************************************************
@@ -116,16 +127,31 @@ public class GameScreen implements Screen {
 
     public void CreateObjects(){
         prevTime = 0;
-        timerFont = new BitmapFont();
+
+        gameWorld_bg = new GameWorldImage(gameWorldSprite_bg);
+        gameWorld_fg = new GameWorldImage(gameWorldSprite_fg);
+
+        timer = new GameWorldImage(new BitmapFont());
+
         lilyPadList = new LilyPadManager(numLilyPads, GAME_WIDTH, GAME_HEIGHT, lilyNames, gameCam);
 
         allFood = new FoodList(foodNames);
 
-        players = new PlayerFrog(frogWidth, toungeWidth, playerToungeSize, playerToungeSpeed, player_maxStamina, player_staminaDecreaseAmtPerJump, playerImage, lilyPadList, allFood, gameCam, inputHandler, useAimer);
+        players = new PlayerFrog(frogWidth, toungeWidth, playerToungeSize, playerToungeSpeed, player_maxStamina, player_staminaDecreaseAmtPerJump, playerImage, lilyPadList, allFood, gameCam, inputHandler, useAimer, atlasParser);
 
-        allFood.SpawnFood(numFood, foodMinSize, foodMaxSize, foodMinSpeed, foodMaxSpeed, randDirChangeTime, staminaDecreaseAmt);
-        //gator = new Alligator(25, 25, 10, 25,lilyPadList.getCurrentPad(), "Frog.png", 2f);
-        enemies = new EnemyList(players, lilyPadList, gatorSpeed, gatorRange, gatorWaitTime);
+        allFood.SetFoodSettings(numFood, foodMinSize, foodMaxSize, foodMinSpeed, foodMaxSpeed, randDirChangeTime, staminaDecreaseAmt);
+        allFood.SpawnFood(numFood);
+
+        enemies = new EnemyList(players, lilyPadList, gatorSpeed, gatorRange, gatorWaitTime, atlasParser);
+
+        //Put them in order to be drawn first is on the bottom
+        DrawableGameObject.AddObject(gameWorld_bg);
+        DrawableGameObject.AddObject(lilyPadList);
+        DrawableGameObject.AddObject(gameWorld_fg);
+        DrawableGameObject.AddFrog(players);
+        DrawableGameObject.AddObject(enemies);
+        DrawableGameObject.AddObject(allFood);
+        DrawableGameObject.AddObject(players.GetController());
     }
 
     public void initGameVars(){
@@ -139,18 +165,17 @@ public class GameScreen implements Screen {
         playerImage = "Frog.png";
 
         //Image names used Sprites ======================================================
-        // Game Constants ****************************************************************************
+        // Game Constants **************************************************************************
         toungeWidth = 1;
         // Map vars ****************************
         numFood = 10;
         numLilyPads = 4;
-        // Tounge vars *************************
+        // Tongue vars *************************
         playerToungeSize = 2;
         playerToungeSpeed = 200;
         useAimer = true;
         // Frog vars ***************************
         frogWidth = 10;
-        frogHeight = frogWidth;
         // Food vars ***************************
         foodMinSize = 2;
         foodMaxSize = 5;
@@ -162,38 +187,40 @@ public class GameScreen implements Screen {
         gatorSpeed = 10f;
         gatorRange = 25f;
         gatorWaitTime = 1f;
+        enemySendTime = 3f;  // How often to send enemies (in seconds)
         // Level variables *********************
         staminaDecreaseAmt = 2f;
         player_staminaDecreaseAmtPerJump = 10f;
         increaseDifficultyTime = 10; //Number of seconds before we increase the difficulty
 
+        // Debug Frog
+        sent = true;
     }
 
     @Override
     public void render(float delta) {
 
         CURTIME += Gdx.graphics.getDeltaTime();
+        //-----------------------------------------------------------------------------
 
-        // Create Timer Text -----------------------------------------------------------
-        hrs = String.format("%02d", (int) CURTIME / 3600);
-        mins = String.format("%02d", (int) CURTIME / 60);
-        secs = String.format("%02d", (int) CURTIME % 60);
-        millis = String.format("%01d",  (int) ((CURTIME - (int) CURTIME) * 10));
-        timerText = hrs + ":" + mins + ":" + secs + ":" + millis;
-        //------------------------------------------------------------------------------
-
-
-        if (players.GetIsAlive()) {
+        if (players.GetIsAlive() || endGameTimer >= 0) {
+            // If the player is dead start counting down
+            if (!players.GetIsAlive()){
+                endGameTimer -= Gdx.graphics.getDeltaTime();
+            }
             Gdx.gl.glClearColor(0, 0, 0, 1);
             Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+
             gameCam.update();
-            batch.setProjectionMatrix(gameCam.combined);
+            DrawableGameObject.getBatch().setProjectionMatrix(gameCam.combined);
 
-// Camera logic END ==================================================================
+        // Camera logic END ===========================================================
 
-// Level Logic START *****************************************************************
+        // Level Logic START **********************************************************
             if(CURTIME - prevTime > increaseDifficultyTime){
                 prevTime++;
+
+                // Increase difficulty
                 if(foodMinSize > 2) {
                     foodMinSize += 1;
                     foodMaxSize -= 1;
@@ -202,41 +229,57 @@ public class GameScreen implements Screen {
                     foodMinSpeed += 10;
                     foodMaxSpeed -= 10;
                 }
+
+
                 difficulty += .1;
                 staminaDecreaseAmt += .1;
                 player_staminaDecreaseAmtPerJump += 1;
                 randDirChangeTime -= .1;
-                // Increase difficulty
+
+                if (enemySendTime >= .5 ) { // We don't want this number to be negative. Also being less then .5 is just unfair and unfun
+                    enemySendTime -= .5;
+                }
+
             }
-// Level Logic END ===================================================================
+            //enemies.SendEnemies(difficulty, enemySendTime);
+            if(sent) {
+                enemies.SendFrog(2, 100, 1);
+                sent = false;
+            }
+        // Level Logic END ===================================================================
 
-// Object Drawing Logic START ********************************************************
-            batch.begin();
 
-            gameWorldSprite_bg.draw(batch);
+        // Object Drawing Logic START ********************************************************
+            DrawableGameObject.getBatch().begin();
 
-            lilyPadList.DrawAllPads(batch);
-            gameWorldSprite_fg.draw(batch);
-            timerFont.draw(batch, timerText, players.GetCenterX() - 30, GAME_HEIGHT);
-            players.GetController().DrawControlArrows(batch);
+            //gameWorldSprite_bg.draw(batch);
 
-            players.DrawMyTounge(batch);
-            allFood.DrawGrabbedFood(batch);
-            enemies.DrawEnemyFrogsOnLayer(BOTTOM_LAYER, batch);
-            players.DrawFrog(batch);
-            enemies.SendEnemies(0f,5);
-            enemies.DrawEnemyFrogsOnLayer(TOP_LAYER, batch);
-            enemies.Draw(batch);
-            allFood.DrawFood(batch, numFood, foodMinSize, foodMaxSize, foodMinSpeed, foodMaxSpeed, randDirChangeTime, staminaDecreaseAmt);
+            //lilyPadList.DrawAllPads(batch);
+            //gameWorldSprite_fg.draw(batch);
+            // Draw Alligator movement animation on a low layer
 
-            batch.end();
+            timer.updatePos(players.GetCenterX() - 30, GAME_HEIGHT);
+
+            //players.DrawMyTounge(batch);
+            //allFood.DrawGrabbedFood(batch);
+            //enemies.DrawEnemyFrogsOnLayer(BOTTOM_LAYER, batch);
+            //players.DrawFrog(batch);
+
+            //enemies.DrawEnemyFrogsOnLayer(TOP_LAYER, batch);
+            //enemies.Draw(batch);
+            //allFood.DrawFood(batch, numFood, foodMinSize, foodMaxSize, foodMinSpeed, foodMaxSpeed, randDirChangeTime, staminaDecreaseAmt);
+
+            DrawableGameObject.DrawGameObjects();
+
+            //drawAnimationList(batch);
+            DrawableGameObject.getBatch().end();
 // Object Drawing Logic END ==========================================================
         }
         else {
+            endGameTimer = EXTRA_TIME_AFTER_GAME_OVER;
             myGame.setScreen(myGame.menuScreen);
             Reset();
-            myGame.gScreen = new GameScreen(myGame,1);
-
+            myGame.menuScreen.gScreen = new GameScreen(myGame,1);
         }
     }
 
@@ -244,14 +287,6 @@ public class GameScreen implements Screen {
         lilyPadList.Reset();
         enemies.Reset();
         allFood.Reset();
-    }
-
-    public Viewport GetViewport() {
-        return gameViewport;
-    }
-
-    public OrthographicCamera GetCamera() {
-        return gameCam;
     }
 
     @Override
@@ -290,7 +325,7 @@ public class GameScreen implements Screen {
         // TODO Auto-generated method stub
         gameWorldSprite_bg.getTexture().dispose();
         gameWorldSprite_fg.getTexture().dispose();
-        batch.dispose();
+        DrawableGameObject.getBatch().dispose();
         CURTIME = 0;
     }
 

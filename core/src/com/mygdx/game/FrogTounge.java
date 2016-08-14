@@ -9,7 +9,7 @@ package com.mygdx.game;
 /**
  * Created by Keith on 8/22/2015.
  */
-public abstract class FrogTounge {
+public abstract class FrogTounge /*extends DrawableGameObject*/{
 
     protected float tipRadius;
     protected float speed;
@@ -26,6 +26,7 @@ public abstract class FrogTounge {
     protected float toungeWidth;
     protected Frog body;
     protected FoodList food;
+    protected Grabable item;
 
     public FrogTounge(float xPos, float yPos, float tipRadius, float width, float speed, Frog frog, FoodList fl){
         this.tipRadius = tipRadius;
@@ -63,9 +64,30 @@ public abstract class FrogTounge {
         this.tip.setCenter(tipCenterX, tipCenterY);//(centerX, yPos - 25);
     }
 
-    public abstract void Draw(SpriteBatch sb);
+    public abstract void DrawTongue(SpriteBatch sb);
     public abstract void ShootTongue();
     public abstract void SetIsAiming(boolean a);
+
+    public void SetItemGrabbed(Grabable g){
+        item = g;       // g is now on this tongue
+        food.Remove(g); // Remove from list
+
+    }
+
+    public void SetItemReleased(){
+        if (item.GetIsAlive()) {
+            food.Add(item);
+        }
+        else{
+            System.out.println("DEBUG FrogTongue: This (SetItemReleased) should be called");
+        }
+    }
+
+    public Grabable GetItem(){
+        return item;
+    }
+
+    public void RemoveItem(){ this.item = null; }
 
     public double lerp(double start, double end, double percentComplete){
         // Make sure percent complete does not go above 1 or below 0

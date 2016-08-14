@@ -36,14 +36,18 @@ public class EnemyFrogTounge extends FrogTounge{
     }
 
     @Override
-    public void Draw(SpriteBatch sb) {
+    public void DrawTongue(SpriteBatch sb) {
+        this.body.DrawStaminaBar(); // This needs to be drawn first, under the tongue
+        if (item != null && item.GetIsAlive()){
+            item.Draw();
+        }
         if(!body.isFighting){
             if (!shootTounge) { // This means we have not picked a target to eat yet and we will only pick a target once our wait timer has expired
                 if (eatTimer < eatTime) {
                     eatTimer += Gdx.graphics.getDeltaTime();
                 } else { // Wait timer has expired time to eat.
                     eatTimer = 0;
-                    if (food.GetSize() > 0) {
+                    if (food.getNumFood() > 0) {
                         CalculateHowToGet(DetermineWhatToEat()); //Decide what grabable object we want and how to get it
                         //Now that we know what we want and how to get it shoot the tongue
                         shootTounge = true;
@@ -112,7 +116,7 @@ public class EnemyFrogTounge extends FrogTounge{
 
         xDist = 0;
         // Loop through all grabable objects and determine which one is closest (aka which one we will attempt to grab)
-        for(MyNode<Grabable> item = food.GetHead(); item != null; item = item.GetNext()){
+        for(MyNode<Grabable> item = food.getFoodList().GetHead(); item != null; item = item.GetNext()){
             xDist = Math.abs(item.GetObject().GetCenterX() - body.GetCenterX());
 
             if(targetToGrab == null){ // First time through just grab the first item

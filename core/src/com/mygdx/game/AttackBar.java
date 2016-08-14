@@ -8,7 +8,7 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 /**
  * Created by Keith on 2/10/2016.
  */
-public class AttackBar {
+public class AttackBar extends DrawableGameObject{
 
     private boolean movingRight;
     private float speed;
@@ -73,7 +73,7 @@ public class AttackBar {
         return prevXPositionOfMarker;
     }
 
-    public float DrawAttackBar(SpriteBatch sb){
+    public void Draw(){
 
         prevXPositionOfMarker = xPositionOfMarker;
 
@@ -101,7 +101,9 @@ public class AttackBar {
         attackBar_right.draw(sb);
 
         attackBar_Marker.draw(sb);
+    }
 
+    public float getMarkerXPos(){
         return xPositionOfMarker;
     }
 

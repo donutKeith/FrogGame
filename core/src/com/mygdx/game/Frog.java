@@ -2,14 +2,14 @@ package com.mygdx.game;
 
         import com.badlogic.gdx.Gdx;
         import com.badlogic.gdx.graphics.Texture;
+        import com.badlogic.gdx.graphics.g2d.Animation;
         import com.badlogic.gdx.graphics.g2d.Sprite;
-        import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-        import javafx.animation.Animation;
+
 
 /**
  * Created by Keith on 8/23/2015.
  */
-public abstract class Frog {
+public abstract class Frog extends DrawableGameObject{
 
 
 
@@ -21,7 +21,8 @@ public abstract class Frog {
     protected float xPosOfHitMarker;
 
 
-    protected Animation jump; // todo
+    protected Animation jumpStart, jumpEnd; // todo
+    protected float jumpElapsedTime;
     protected Sprite frogImg;
     protected Sprite staminaBar;
 
@@ -30,13 +31,16 @@ public abstract class Frog {
     protected FrogTounge myTounge;
     protected LilyPadManager lilypads;
     protected FoodList myFood;
+    //protected Grabable myGrabbedItem;
     protected AttackBar myAtkBar;
 
     protected boolean isAlive, isCovered;
     protected boolean isFighting;
     protected boolean iAmTheAttacker;
     protected boolean enemyOnLeft, enemyOnRight;
-    protected boolean playMoveAnimation, playThrownAnimation, playWinAnimation, playLoseAnimation;
+    protected boolean playMoveAnimation, playThrownAnimation, playWinAnimation, playLoseAnimation, playDeathByExhaustion, startEndJump;
+
+    protected Animation regularAnimation;
 
     protected int myCurPad, nextPad;
     protected int numPadsJumping;
@@ -48,7 +52,7 @@ public abstract class Frog {
     public Frog(float diameter, float maxStamina, float staminaLostPerJump,
                 String frogImage,
                 LilyPadManager lp,
-                FoodList fl){
+                FoodList fl, AtlasParser a){
 
         isAlive = true;
         iAmTheAttacker = false;
@@ -58,12 +62,11 @@ public abstract class Frog {
         playThrownAnimation = false;
         playWinAnimation = false;
         playLoseAnimation = false;
+        playDeathByExhaustion = false;
+        startEndJump = true;
 
         lilypads = lp;
         myFood = fl;
-
-        percentageCompleteJump = 0;
-        jumpTime = .25f;
 
         this.staminaLostPerJump = staminaLostPerJump;
         getStaminaBarMaxHeight = 2;
@@ -72,38 +75,62 @@ public abstract class Frog {
 
         staminaBar = new Sprite(new Texture(Gdx.files.internal("StaminaBar.png")));
 
-
-
         frogImg = new Sprite(new Texture(Gdx.files.internal(frogImage)));
 
         frogImg.setSize(diameter, diameter);
         frogImg.setOriginCenter();
 
+        jumpElapsedTime = 0;
+        jumpTime = 1f; // Todo move this outside of this class to be taken as a parameter
+        percentageCompleteJump = 0;
+        jumpStart = a.GetAnimationName("Test",jumpTime/2f, Animation.PlayMode.NORMAL);
+        jumpEnd = a.GetAnimationName("Test",jumpTime/2f, Animation.PlayMode.NORMAL);
+        System.out.println("Start jump time:" + jumpStart.getAnimationDuration());
 
     }
 
+    protected void faceJumpingDirection(boolean jumpLeft){
+        if(jumpLeft){
+            frogImg.setRotation(180);
+        }
+        else{
+            frogImg.setRotation(0);
+        }
+    }
+
     public abstract void SetStaminaBarPosition();
-    public abstract void Draw(SpriteBatch sb);
     public abstract void Signal_StandardJump(boolean jumpLeft, boolean attackAllowed, boolean normalJump);
-    public abstract void Attack(SpriteBatch sb);
-    public abstract void Defend(SpriteBatch sb);
+    public abstract void DrawFrog();   //Draws things relevant to each subclass of frog (aka player and enemy frogs)
+    //public abstract void FrogJump();
 
     public void FrogJump(){
-        if(jumpTime > 0) {
+        if(jumpTime * numPadsJumping > 0) { // Time it takes to jump from one adjacent lily pad to another multiplied by the number we are jumping to. (ex. 1 is the pad next to us, 2 is the one next to that one etc.)
             isCovered = false; //If you jump you lose your cover
+
             // Move the frog to the next pad
-            percentageCompleteJump += Gdx.graphics.getDeltaTime() / (jumpTime * numPadsJumping);
+            percentageCompleteJump += Gdx.graphics.getDeltaTime() / (jumpTime * numPadsJumping);    // numPadsJumping is calculated when Signal_standardJump is called which also
+                                                                                                    // sets playMoveAnimation to true which plays the jumping animation
         }
         else{
             percentageCompleteJump = 1;
         }
         frogImg.setCenter((float) myTounge.lerp(curPadX, nextPadX, percentageCompleteJump), (float) myTounge.lerp(curPadY, nextPadY, percentageCompleteJump));//todo move lerp function
 
+        if(jumpElapsedTime < (jumpTime * numPadsJumping)/2f) {
+            sb.draw(jumpStart.getKeyFrame(jumpElapsedTime, false), frogImg.getX(), frogImg.getY(), frogImg.getWidth(), frogImg.getHeight());
+            jumpElapsedTime += Gdx.graphics.getDeltaTime();
+        }
+        else /*if (percentageCompleteJump >= .5 && percentageCompleteJump < 1)*/{
+            sb.draw(jumpEnd.getKeyFrame(jumpElapsedTime - ((jumpTime * numPadsJumping)/2f), false), frogImg.getX(), frogImg.getY(), frogImg.getWidth(), frogImg.getHeight());
+            jumpElapsedTime += Gdx.graphics.getDeltaTime();
+        }
 
         if(percentageCompleteJump >= 1){ // We are done jumping
             playMoveAnimation = false;
             playThrownAnimation = false;
+            startEndJump = true;
             SetFrogOnNewPad();
+            jumpElapsedTime = 0;
         }
     }
 
@@ -111,18 +138,23 @@ public abstract class Frog {
         return isFighting;
     }
 
-    public boolean Fight(SpriteBatch sb){
-        boolean fightStillOccuring;
+    public boolean Fight(){
+        boolean fightStillOccurring;
 
-        if(iAmTheAttacker) {
-            Attack(sb);
+        if(iAmTheAttacker && this.GetLayerID() < frogIamFighting.GetLayerID()) {
+            //frogIamFighting.GetTongue().removeAndInsert(this);
+            if(frogIamFighting.GetTongue().GetItem() != null){
+                frogIamFighting.GetTongue().GetItem().removeAndInsert(this);
+            }
+            frogIamFighting.removeAndInsert(this);
+
         }
-        else {
+/*        else {
             Defend(sb);
         }
-
-        fightStillOccuring = frogIamFighting.curStamina > 0 && curStamina > 0; //If both frogs are still alive then yes the fight is still going on
-        if(!fightStillOccuring){
+*/
+        fightStillOccurring = frogIamFighting.curStamina > 0 && curStamina > 0; //If both frogs are still alive then yes the fight is still going on
+        if(!fightStillOccurring){
             iAmTheAttacker = false;
             if(curStamina > 0){// I am the winner
                 // Play Win animation
@@ -133,7 +165,7 @@ public abstract class Frog {
             }
             myAtkBar.Dispose();
         }
-        return fightStillOccuring;
+        return fightStillOccurring;
     }
 
     public void SetFrogYouAreFighting(Frog f, boolean isAttacker){
@@ -145,7 +177,7 @@ public abstract class Frog {
 
 
 
-    public void DrawStaminaBar(SpriteBatch sb){
+    public void DrawStaminaBar(){
         if (curStamina > 0){
             curStamina -= GameScreen.staminaDecreaseAmt * Gdx.graphics.getDeltaTime();
             if (curStamina < 0){
@@ -159,7 +191,7 @@ public abstract class Frog {
 
     }
 
-    //public abstract void FrogJump();
+
 
     public void SetFrogOnNewPad(){
         // Assumes we have landed on the "nextPad"
@@ -194,25 +226,28 @@ public abstract class Frog {
 
     }
 
-    public void DrawFrog(SpriteBatch sb){
+    @Override
+    public void Draw(){
 
         if(isFighting){
-            isFighting = Fight(sb);
-            if(myFood.GetGrabbedFood().GetSize() > 0){
-                //myFood.GetGrabbedFood().GetHead().GetObject().SetIsGrabbed(false);
-                //myFood.Remove(myFood.GetGrabbedFood().GetHead().GetObject());
+            if(myTounge.GetItem() != null) {
+                myTounge.SetItemReleased(); // Place food on the tongue back into the list for to be grabbed later
             }
+            isFighting = Fight();
+
         }
         else{
             LookForAdjacentEnemies();
             if (playMoveAnimation || playThrownAnimation) { // Play movement animation
+                //System.out.println("Play Jump animation"); // todo play jump animation
                 FrogJump();
+
             }
             else if(playWinAnimation){
-
             }
             else if(playLoseAnimation){
-
+            }
+            else if(playDeathByExhaustion){
             }
         }
 
@@ -227,14 +262,17 @@ public abstract class Frog {
             }
         }
 
-        if(curStamina <= 0 && isAlive){
+        if(curStamina <= 0 && myTounge.GetItem() == null && isAlive){
             isAlive = false;
+            playDeathByExhaustion = true;
             RemoveFrogFromOldPad();
         }
 
-        if(isAlive){
-            DrawStaminaBar(sb);
-            Draw(sb);
+
+        DrawFrog();
+
+        if ( !isAlive && playDeathByExhaustion == false){
+            DrawableGameObject.RemoveFrog(this);
         }
     }
 
@@ -314,9 +352,12 @@ public abstract class Frog {
         frogImg.setRotation(degree);
     }
 
+   /* public void DrawMyTounge(SpriteBatch sb){
+        myTounge.Draw();
+    }*/
 
-    public void DrawMyTounge(SpriteBatch sb){
-        myTounge.Draw(sb);
+    public FrogTounge GetTongue(){
+        return myTounge;
     }
 
     public float GetToungeTipX(){

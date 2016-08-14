@@ -12,7 +12,7 @@ package com.mygdx.game;
 /**
  * Created by Keith on 8/22/2015.
  */
-public class ControlBar implements InputProcessor{
+public class ControlBar extends DrawableGameObject implements InputProcessor{
 
     private static final boolean LEFT = true;
     private static final boolean RIGHT = false;
@@ -26,11 +26,9 @@ public class ControlBar implements InputProcessor{
     private boolean frogSelected, fireTounge, isMovementAllowed;
     private Vector3 clickPos;
     private boolean isOn;
-    private boolean needToMoveToDiffPad;
     private float arrowAlpha, atkArrowAlpha;
 
     private Sprite leftArrow, rightArrow, atkLeftArrow, atkRightArrow;
-
 
     public ControlBar(PlayerFrog f, LilyPadManager lpm, OrthographicCamera cam, InputMultiplexer in){
 
@@ -42,7 +40,6 @@ public class ControlBar implements InputProcessor{
         frogSelected = false;// Flag that determines when the player is aiming the tongue
         fireTounge = false;
         isMovementAllowed = true;
-        needToMoveToDiffPad = false;
 
         //Movement Arrows
         leftArrow = new Sprite(new Texture(Gdx.files.internal("arrow_L.png")));
@@ -77,7 +74,8 @@ public class ControlBar implements InputProcessor{
         in.addProcessor(this);
     }
 
-    public void DrawControlArrows(SpriteBatch sb){
+    public void Draw(){
+
         if(player.GetIsFighting()) {
             atkLeftArrow.setSize(arrowWidth, arrowHeight);
             atkRightArrow.setSize(arrowWidth, arrowHeight);
@@ -128,13 +126,23 @@ public class ControlBar implements InputProcessor{
             rightArrow.draw(sb);
         }
 
-
+        //this.followCam.position.set(GetCenterX(), GetCenterY(), 0);
+        this.cam.position.set(player.GetCenterX(), player.GetCenterY(), 0);
     }
 
     private float calculateDegree(float inX, float inY){
-        // We need to do this to get the sprite to aim at the opposite side of the touch coordinates. //To get the OPPOSITE side we subtract teh center from the touch pos instead of the other way around.
+        // THINGS TO UNDERSTAND ABOUT THIS COORDINATE SYSTEM:
+        //   Zero degrees is on the x axis pointing to the right. The degree increases (0 -> 359) going counter-clockwise.
+
+        // We need to get the sprite to aim at the OPPOSITE side of the touch coordinates.
+        // To get the OPPOSITE side we subtract the center from the touch pos instead of the other way around.
+        // Note because of this our degrees will go from 180 to -180 (well 180 to -179)
         float degree;
         degree  = (float) Math.toDegrees(Math.atan2((player.GetCenterY() - inY), (player.GetCenterX() - inX)));
+        // As mentioned above the equation gets the opposite side so when we click at
+        if(degree < 0){
+            degree = 360 + degree;
+        }
         return degree;
     }
 
@@ -171,7 +179,7 @@ public class ControlBar implements InputProcessor{
             }
         }
         else{
-        // Logic below is for aiming the tounge ----------------------------------------------------------------------------
+        // Logic below is for aiming the tongue ----------------------------------------------------------------------------
             if(isOn) {
                 playerRadius = player.GetSprite().getWidth() / 2f;            //Player is assumed to have a circular area in which it can be touched with the origin at the center of the image. This is the radius of that area.
                 playerDistanceFromTouchPos = Math.hypot(clickPos.x - player.GetCenterX(), clickPos.y - player.GetCenterY()); //This is the distance from the touch coordinates to the center of the player's area in which it can be touched
@@ -180,7 +188,7 @@ public class ControlBar implements InputProcessor{
                 //Based on which touch point we are processing (1st, 2nd, 3rd, etc.) we have different logic. For instance if the player touches the frog before touching anything else on the screen he/she can aim the frog.
 
                 if (playerDistanceFromTouchPos <= playerRadius + offset) {
-                    player.Aim(calculateDegree(screenX, screenY));
+                    player.Aim(calculateDegree(clickPos.x, clickPos.y));
                     frogSelected = true;
                 } else {
                     frogSelected = false;
@@ -231,12 +239,17 @@ public class ControlBar implements InputProcessor{
     @Override
     public boolean touchDragged(int screenX, int screenY, int pointer) {
         if(isOn) {
+
             if(frogSelected && !player.GetIsFighting()){
                 clickPos = cam.unproject(new Vector3(screenX, screenY, 0));
                 player.Aim(calculateDegree(clickPos.x, clickPos.y));
             }
+
+            return true;
         }
-        return true;
+        else{
+            return false;
+        }
     }
 
     //========================================================================================================================================================

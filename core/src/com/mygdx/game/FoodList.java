@@ -5,52 +5,69 @@ package com.mygdx.game;
 /**
  * Created by Keith on 10/17/2015.
  */
-public class FoodList extends MyObjectList<Grabable> {
+public class FoodList extends DrawableGameObject {
 
+    private MyObjectList<Grabable> foodList;
     private String[] foodImages;
-    private MyObjectList<Grabable> grabbedFood;
+    private int numFoodThatShouldBeKept;
+    private float  minSize, maxSize, minSpeed, maxSpeed, randDirChangeTime, staminaIncrease;
+    //private MyObjectList<Grabable> grabbedFood;
 
     public FoodList(String[] foodNames) {
-        super();
+        foodList = new  MyObjectList<Grabable>();
         this.foodImages = foodNames;
-        grabbedFood = new MyObjectList<Grabable>();
+        //grabbedFood = new MyObjectList<Grabable>();
     }
 
     public FoodList(Food f, String[] foodNames) {
-        super(f);
+        foodList = new  MyObjectList<Grabable>(f);
         this.foodImages = foodNames;
     }
 
-    public MyObjectList<Grabable> GetGrabbedFood(){
-        return grabbedFood;
+    public void SetAmountOfFood(int num){ numFoodThatShouldBeKept = num;}
+
+    public void SetFoodSettings(int foodNum, float minSize, float maxSize, float minSpeed, float maxSpeed, float randDirChangeTime, float staminaIncrease){
+        numFoodThatShouldBeKept = foodNum;
+        this.minSize = minSize;
+        this.maxSize = maxSize;
+        this.minSpeed = minSpeed;
+        this.maxSpeed = maxSpeed;
+        this.randDirChangeTime = randDirChangeTime;
+        this.staminaIncrease = staminaIncrease;
     }
 
-    public void DrawFood(SpriteBatch sb, int numFoodThatShouldBeKept, float minSize, float maxSize, float minSpeed, float maxSpeed, float randDirChangeTime, float staminaIncrease) {
-        if(GetSize() < numFoodThatShouldBeKept){
-            SpawnFood(numFoodThatShouldBeKept - GetSize(), minSize, maxSize, minSpeed, maxSpeed, randDirChangeTime, staminaIncrease);
+    public  MyObjectList<Grabable> getFoodList(){
+        return foodList;
+    }
+
+    //public MyObjectList<Grabable> GetGrabbedFood(){
+    //    return grabbedFood;
+    //}
+
+    public void Add(Grabable obj){
+        foodList.Add(obj);
+    }
+
+    public void Remove(Grabable obj) {
+        foodList.Remove(obj);
+    }
+
+    public int getNumFood(){
+        return foodList.GetSize();
+    }
+
+    public void Draw() {
+        if(foodList.GetSize() < numFoodThatShouldBeKept){
+            SpawnFood(numFoodThatShouldBeKept - foodList.GetSize());
         }
-        for(MyNode<Grabable> counter = head; counter != null; counter = counter.GetNext()){
+        for(MyNode<Grabable> counter = foodList.GetHead(); counter != null; counter = counter.GetNext()){
             if(counter.GetObject().GetIsAlive()) {
-                counter.GetObject().Draw(sb);
+                counter.GetObject().Draw();
             }
         }
     }
 
-    public void DrawGrabbedFood(SpriteBatch sb){
-        if(grabbedFood.GetSize() > 0) {
-            for(MyNode<Grabable> counter = grabbedFood.GetHead(); counter != null; counter = counter.GetNext()){
-                if(counter.GetObject().GetIsAlive()) {
-                    counter.GetObject().Draw(sb);
-                }
-                else{
-                    counter.GetObject().Dispose();
-                    grabbedFood.Remove(counter.GetObject());
-                }
-            }
-        }
-    }
-
-    public void SpawnFood(int numFood, float minSize, float maxSize, float minSpeed, float maxSpeed, float randDirChangeTime, float staminaIncrease){
+    public void SpawnFood(int numFood){
         int imageIndex;
         float size;
         float xPosCenter, yPosCenter;
@@ -76,32 +93,36 @@ public class FoodList extends MyObjectList<Grabable> {
                 staminaIncrease = staminaIncrease * .5f;
             }
 
-            Add(new Food(xPosCenter, yPosCenter, size, speed, staminaIncrease, randDirChangeTime, foodImages[imageIndex]));
+            staminaIncrease *= 10;
+
+            foodList.Add(new Food(xPosCenter, yPosCenter, size, speed, staminaIncrease, randDirChangeTime, foodImages[imageIndex]));
         }
     }
 
 
-    public void CheckCollisions(Frog f){//FrogTounge ft){
+    public void CheckCollisions(Frog f){
         float riseCc, runCc, mag;
         boolean noFoodGrabbed = true;
-        for(MyNode<Grabable> counter = head; counter != null && noFoodGrabbed; counter = counter.GetNext()){//Keep looking to see if we hit a grabable object is so exit the loop if not loop until all are checked
+        for(MyNode<Grabable> counter = foodList.GetHead(); counter != null && noFoodGrabbed; counter = counter.GetNext()){//Keep looking to see if we hit a grabable object if so exit the loop if not loop until all are checked
             if(counter.GetObject().GetIsAlive()) {
                 riseCc = counter.GetObject().GetCenterX() - f.GetToungeTipX();
                 runCc = counter.GetObject().GetCenterY() - f.GetToungeTipY();
                 mag = (float) Math.hypot(riseCc, runCc);
                 if (mag <= Math.abs(counter.GetObject().GetRadius() + f.GetToungeRadius())) {
-                    noFoodGrabbed = false;
-                    counter.GetObject().SetFrogThatGrabbedMe(f);
-                    grabbedFood.Add(counter.GetObject());
+                    if (f.GetTongue().GetItem() == null) {
+                        f.GetTongue().SetItemGrabbed(counter.GetObject());
+                        noFoodGrabbed = false;
+                        counter.GetObject().SetFrogThatGrabbedMe(f);
+                        counter.GetObject().removeAndInsert(f);
+                    }
 
-                    Remove(counter.GetObject());
                 }
             }
         }
     }
 
     public void Reset(){
-        for(MyNode<Grabable> counter = head; counter != null; counter = counter.GetNext()) {
+        for(MyNode<Grabable> counter = foodList.GetHead(); counter != null; counter = counter.GetNext()) {
             counter.GetObject().Reset();
         }
     }

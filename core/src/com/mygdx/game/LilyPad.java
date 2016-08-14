@@ -9,7 +9,7 @@ package com.mygdx.game;
 /**
  * Created by Keith on 9/20/2015.
  */
-public class LilyPad{
+public class LilyPad extends DrawableGameObject{
 
     private Sprite lilyPad_img;
     private boolean clockWise;
@@ -47,7 +47,7 @@ public class LilyPad{
         counter = 0;
     }
 
-    public void DrawPad(SpriteBatch sb){
+    public void Draw(){
         if(isPadGone){
             curTimeGone += Gdx.graphics.getDeltaTime();
             if(curTimeGone >= goneDuration) {

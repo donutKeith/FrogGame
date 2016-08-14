@@ -37,7 +37,7 @@ public class MyObjectList<T> {
                 objAlreadyAdded = true;
             }
             else {
-                while (curNode.GetNext() != null && objAlreadyAdded == false) {    // Loop until we hit the
+                while (curNode.GetNext() != null && !objAlreadyAdded) {    // Loop until we hit the
                     if (curNode.GetNext().GetObject() != obj) {    // Check if this node contains the obj we are adding, this way we do not add the same obj twice
                         curNode = curNode.GetNext();
                     } else {                            // Only move on if this node did not already have the obj we are adding
@@ -114,6 +114,19 @@ public class MyObjectList<T> {
         else{
             return null;
         }
+    }
+
+    public boolean Set (T lookFor, T replaceWith){
+        boolean ret = false;
+        MyNode<T> curNode = head;
+        while(curNode.GetObject() != lookFor && curNode != null && !ret){
+            if(lookFor == curNode.GetObject()){
+                curNode.Set(replaceWith);
+                ret = true;
+            }
+            curNode = curNode.GetNext();
+        }
+        return ret;
     }
 
     public int GetSize(){

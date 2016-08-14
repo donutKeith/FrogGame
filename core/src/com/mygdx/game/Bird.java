@@ -5,6 +5,8 @@ package com.mygdx.game;
         import com.badlogic.gdx.graphics.g2d.Sprite;
         import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 
+        import java.util.Vector;
+
 /**
  * Created by Keith on 10/25/2015.
  */
@@ -14,18 +16,20 @@ public class Bird extends Enemy {
     public boolean atkFromLeft, atkChecked, startAtk;
     public Cover leaf;
     private Sprite birdImg;
-    private Frog[] frogs;
+    private Vector<Frog> frogs;
+    private LilyPadManager lpm;
     private int curNumFrogsToCheck, startCheckAtIndex;
     private boolean frogHasBeenKilled;
     private float waitTime;
 
 
-    public Bird(float speed, float waitTime, String image, int numberPads){
+    public Bird(float speed, float waitTime, String image, LilyPadManager lpm){
         super(speed);
         birdImg = new Sprite(new Texture(Gdx.files.internal(image)));
         birdImg.setSize(25,25);
         ycur = 50;//targets[0].GetCenterY();
-        frogs = new Frog[numberPads];
+        this.lpm = lpm;
+        frogs = new Vector<Frog>();
 
         this.waitTime = waitTime;
         coverSpeed = 10;
@@ -58,9 +62,18 @@ public class Bird extends Enemy {
         birdImg.setCenter(xCurB, ycur);
     }
 
-    public void UpdateTargets(MyObjectList<PlayerFrog> fs, MyObjectList<EnemyFrog> enemyFs){
+    private void UpdateTargets(){
+        for (int i = 0; i < lpm.getPadArr().length; i++){
+            if (lpm.getPadArr()[i].GetFrogOnPad() != null ) {
+                frogs.add(lpm.getPadArr()[i].GetFrogOnPad());
+            }
+        }
+        curNumFrogsToCheck = frogs.size();
+    }
+
+    /*public void UpdateTargets(MyObjectList<PlayerFrog> fs, MyObjectList<EnemyFrog> enemyFs){
         int frogCounter = 0;
-        if(fs.GetSize() + enemyFs.GetSize() <= frogs.length) {
+        if(fs.GetSize() + enemyFs.GetSize() <= frogs.size()) {
             //Add player frogs to the attack list
             for (MyNode<PlayerFrog> curFrog = fs.GetHead(); curFrog != null; curFrog = curFrog.GetNext()) {
                 frogs[frogCounter] = curFrog.GetObject();
@@ -76,12 +89,12 @@ public class Bird extends Enemy {
             System.err.print("Too many player/enemy frogs in the list!!");
         }
         curNumFrogsToCheck = frogCounter;// because curNumFrogs starts at 1 not 0
-    }
+    }*/
 
     @Override
-    public void DrawAtkingEnemy(SpriteBatch sb) {
+    public void DrawAtkingEnemy() {
 
-        int curNumFrogs;
+        UpdateTargets();
         // Before we can attack we need to know if the leaf is gone. It has either been picked up or floated off screen -----------------
         if (leaf.GetIsOffScreen() || leaf.GetHasBeenGrabbed()) { // If the leaf is off the screen or has been grabbed by a frog
             if(waitTimer <= 0) {
@@ -103,6 +116,7 @@ public class Bird extends Enemy {
             // 1. Determine if attack is over, (aka are we attacking/being used)
             if ((atkFromLeft && this.GetCenterX() > GameScreen.GAME_WIDTH) || (!atkFromLeft && this.GetCenterX() < 0)) {
                 isBeingUsed = false;
+                frogs.removeAllElements();
             } else {
                 // 2-A
                 if (atkFromLeft) {
@@ -117,31 +131,29 @@ public class Bird extends Enemy {
             birdImg.draw(sb);
 
 
-
-            curNumFrogs = curNumFrogsToCheck; // Update the number of frogs we need to check. If we already passed over some we do not need to recheck them
             // This is updated in the loop itself so that the next time (next frame) we do not need to check that frog or any of the frogs before it
             // Check if the bird is over the player
-            for (int i = startCheckAtIndex; i < curNumFrogs; i++) {
-                if (((this.GetCenterX() >= frogs[i].GetCenterX() && atkFromLeft) || (this.GetCenterX() <= frogs[i].GetCenterX() && !atkFromLeft))) {
-                    if(!frogs[i].isFighting || (frogs[i].isFighting && frogs[i].iAmTheAttacker)) { //If the frog is attacking or not being attacked we can take him (essentially we just can't take frogs that are being attacked aka defending)
-                        if (frogs[i].isCovered()) {
+            for (int i = startCheckAtIndex; i < frogs.size(); i++) {
+                if (((this.GetCenterX() >= frogs.get(i).GetCenterX() && atkFromLeft) || (this.GetCenterX() <= frogs.get(i).GetCenterX() && !atkFromLeft))) {
+                    if(!frogs.get(i).isFighting || (frogs.get(i).isFighting && frogs.get(i).iAmTheAttacker)) { //If the frog is attacking or not being attacked we can take him (essentially we just can't take frogs that are being attacked aka defending)
+                        if (frogs.get(i).isCovered()) {
                             // Remove leaf
-                            frogs[i].SetCovered(false);
+                            frogs.get(i).SetCovered(false);
                         } else {
                             // Kill player
                             if (!frogHasBeenKilled) {
-                                frogs[i].SetIsAlive(false);
+                                frogs.get(i).SetIsAlive(false);
                                 frogHasBeenKilled = true;
                             }
                         }
 
                         // Do not need to check this frog again
-                        if (this.GetCenterX() >= frogs[i].GetCenterX() && atkFromLeft) {//This means we are attacking from the left and have already passed the left most frog.
+                        if (this.GetCenterX() >= frogs.get(i).GetCenterX() && atkFromLeft) {//This means we are attacking from the left and have already passed the left most frog.
                             // So we don't need to check it next time when we go to produce the next frame.
                             // NOTE: THIS DOES NOT AFFECT THIS LOOP UNTIL THE NEXT TIME THIS METHOD IS CALLED  (AKA next frame of this bird attacking)
                             startCheckAtIndex++;
                         }
-                        if (this.GetCenterX() <= frogs[i].GetCenterX() && !atkFromLeft) {
+                        if (this.GetCenterX() <= frogs.get(i).GetCenterX() && !atkFromLeft) {
                             curNumFrogsToCheck--;
                         }
                     }
@@ -150,6 +162,7 @@ public class Bird extends Enemy {
                 }
             }
         }
+
     }
 
     public float GetCenterX(){

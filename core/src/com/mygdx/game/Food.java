@@ -44,21 +44,24 @@ public class Food extends Grabable{
     protected void Move(){
         switch (moveType) {
             case rotate:
-                rotateAround(startX, startY, rotDist, this.speed, ccw);
-                SetRotPoint(startX, startY);
+
                 if (ccw) {
                     image.setRotation(degreeOfRotation - 90);
                 } else {
                     image.setRotation(degreeOfRotation + 90);
                 }
+                rotateAround(startX, startY, rotDist, this.speed, ccw);
+                SetRotPoint(startX, startY);
                 break;
             case straight:
-                straightMove();
+
                 image.setRotation(degreeOfRotation);
+                straightMove();
                 break;
             case random:
-                randomMovement(this.amountOfTimeUntilDirectionChange);
+
                 image.setRotation(degreeOfRotation);
+                randomMovement(this.amountOfTimeUntilDirectionChange);
                 break;
         }
 
@@ -118,8 +121,10 @@ public class Food extends Grabable{
     }
 
     public void ApplyGrabbedAffect(Frog f){
+        // This is called at the moment the food is dead ( at the frog's location and grabbed )
         isAlive = false;
         f.AddOrSubStamina(staminaAmt);
+        f.GetTongue().RemoveItem();
     }
 
     public float GetRadius(){

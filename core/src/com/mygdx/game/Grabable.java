@@ -11,7 +11,7 @@ package com.mygdx.game;
 /**
  * Created by Keith on 11/15/2015.
  */
-public abstract class Grabable {
+public abstract class Grabable extends DrawableGameObject{
 
     public enum MoveType{
         rotate, straight, random;
@@ -96,8 +96,6 @@ public abstract class Grabable {
         return (int) (Math.random() * range) + min;
     }
 
-    protected abstract void DrawAffect();
-
     protected abstract void Move();
 
     protected abstract void ApplyGrabbedAffect(Frog f);
@@ -107,7 +105,7 @@ public abstract class Grabable {
         frogGrabbin = f;
     }
 
-    protected void Draw(SpriteBatch sb){
+    protected void Draw(){
         if(isAlive) {
             radius = this.image.getWidth()/2f;
 
@@ -120,6 +118,9 @@ public abstract class Grabable {
                         affectApplied = true;
                     }
                 }
+                else{
+                    Move();
+                }
             }
             else{
                 Move();
@@ -128,7 +129,6 @@ public abstract class Grabable {
             image.draw(sb);
         }
     }
-
 
     public float GetSpeed(){
         return speed;

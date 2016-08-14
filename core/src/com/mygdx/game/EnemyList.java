@@ -1,6 +1,8 @@
 package com.mygdx.game;
 
+        import com.badlogic.gdx.graphics.g2d.Sprite;
         import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+        import com.badlogic.gdx.graphics.g2d.TextureAtlas;
 
         import javax.swing.GroupLayout;
 
@@ -8,44 +10,46 @@ package com.mygdx.game;
 /**
  * Created by Keith on 10/25/2015.
  */
-public class EnemyList{
+public class EnemyList extends DrawableGameObject{
 
     private LilyPadManager lilyPadList;
     private Alligator []alligators;
     private Bird bird;
-    private EnemyFrog enemyFrog;
+    //private EnemyFrog enemyFrog;
     private String alligatorImg, birdImg;
     private MyObjectList<Enemy> attackingEnemies;
     private int numAtking;
     private MyObjectList<PlayerFrog> frogs;
-    private MyObjectList<EnemyFrog> enemyFrogs;
+    //private MyObjectList<EnemyFrog> enemyFrogs;
     private Frog players;
     private Enemy curEnemy;
     private int numActiveEnemyFrogs;
     private float sentEnemtAtTime;
+    private AtlasParser ap;
+    private int numEnemyFrogs;
 
 
 
-    public EnemyList(PlayerFrog player, LilyPadManager lpm, float alligatorSpeed , float alligatorRange, float alligatorTimeBeforeAtk){
+    public EnemyList(PlayerFrog player, LilyPadManager lpm, float alligatorSpeed , float alligatorRange, float alligatorTimeBeforeAtk, AtlasParser atlasParser){
         this.players = player;
         frogs = new MyObjectList<PlayerFrog>();
-        enemyFrogs = new MyObjectList<EnemyFrog>(); // List of enemy frogs that will be drawn
-
+        //enemyFrogs = new MyObjectList<EnemyFrog>(); // List of enemy frogs that will be drawn
+        this.ap = atlasParser;
         frogs.Add(player);
-
+        numEnemyFrogs = 0;
         lilyPadList = lpm;
 
         alligatorImg = "";
         alligators = new Alligator[lilyPadList.getPadArr().length];
         birdImg = "TEST.png";
-        bird = new Bird(100, 2, birdImg, lilyPadList.getPadArr().length);
+        bird = new Bird(100, 2, birdImg, lilyPadList);
 
         numAtking = 0;
         numActiveEnemyFrogs = 0;
         attackingEnemies = new MyObjectList<Enemy>();
         // Create an enemy for each pad
-        for(int i = 0; i < lilyPadList.getPadArr().length - 1; i++){
-            alligators[i] = new Alligator(alligatorSpeed, alligatorRange,  lilyPadList.getPadArr()[i], alligatorImg, alligatorTimeBeforeAtk);
+        for(int i = 0; i < lilyPadList.getPadArr().length; i++){
+            alligators[i] = new Alligator(alligatorSpeed, alligatorRange,  lilyPadList.getPadArr()[i], ap, alligatorTimeBeforeAtk);
         }
 
     }
@@ -77,19 +81,20 @@ public class EnemyList{
     }
 
     public void SendBird( boolean fromLeft){
-        attackingEnemies.Add(bird);
-        //if(!bird.isBeingUsed){
-        bird.UpdateTargets(frogs, enemyFrogs);
-        //}
+        attackingEnemies.Add(bird);//if(!bird.isBeingUsed){
+       // bird.UpdateTargets(frogs, enemyFrogs);//}
         bird.isBeingUsed = true;
         bird.startAtk(fromLeft);
+    }
 
+    public void DecrementFrogCount(){
+        numEnemyFrogs--;
     }
 
     public void SendFrog(int padNum, float maxStamnia, float difficulty){
         // maxStamina is how much stamina the frog starts with and its stamina cannot exceed this amount
         // difficulty relates to how accurate and how often this frog grabs food. It is expected to be a value between 1 and 0 including 1 and 0.
-        if(enemyFrogs.GetSize() < 3) {
+        if(numEnemyFrogs < 3) {
             String frogImage;
             if(difficulty < 0){
                 difficulty = 0;
@@ -100,16 +105,17 @@ public class EnemyList{
 
             // Change the frog image based on difficulty
             if(difficulty < .3){
-                frogImage = "Frog.png";
+                frogImage = "EnemyFrog.png";
             }
             else if(difficulty < .6){
-                frogImage = "Frog.png";
+                frogImage = "EnemyFrog.png";
             }
             else{
-                frogImage = "Frog.png";
+                frogImage = "EnemyFrog.png";
             }
-            enemyFrog = new EnemyFrog(10, 1, 2, 200, maxStamnia, 10, frogImage, lilyPadList, GameScreen.allFood, difficulty);//constant arguments are (in order): Diameter of the image, tongue width, tongue tip radius, tongue speed
-            enemyFrogs.Add(enemyFrog);
+            EnemyFrog enemyFrog = new EnemyFrog( 10, 1, 2, 200, maxStamnia, 10, frogImage, lilyPadList, GameScreen.allFood, this, difficulty, ap);//constant arguments are (in order): Diameter of the image, tongue width, tongue tip radius, tongue speed
+            numEnemyFrogs++;
+            DrawableGameObject.AddFrog(enemyFrog);
             enemyFrog.SetPad(padNum);
         }
     }
@@ -117,11 +123,12 @@ public class EnemyList{
     public void SendEnemies(float difficulty, float howOftenToSend){
         int padNum = players.myCurPad;
         // howOftenToSend is the measurement in seconds of how often we "might" send an enemy
-        if(Math.random() < .1 && GameScreen.CURTIME - sentEnemtAtTime > howOftenToSend){ //we have a 10% chance of sending an enemy
+        if(/*Math.random() < .1 && */GameScreen.CURTIME - sentEnemtAtTime > howOftenToSend){ //we have a 10% chance of sending an enemy
             sentEnemtAtTime = GameScreen.CURTIME;
-            if(lilyPadList.GetNumPadsAvail() > 2 && Math.random() > .5f) {//Only send frogs and alligators if there are more than 2 pads available, Also add an element of chance since we do not want to be able to send birds at any time as well
+            if(lilyPadList.GetNumPadsAvail() > 3 && Math.random() > .5f) {//Only send frogs and alligators if there are more than 2 pads available, Also add an element of chance since we do not want to be able to send birds at any time as well
                 if (Math.random() > .5f && !alligators[padNum].isBeingUsed){// 50% chance of getting a frog or an alligator
-                    SendAlligator(padNum);
+                    System.out.println("Sending alligator...");
+                    //SendAlligator(padNum);
                 }
                 else{
                     System.out.println("SendFrog:(MAYBE)  1");
@@ -139,7 +146,7 @@ public class EnemyList{
                         if(alligators[padNum] != null) {
                             System.out.println("SendFrog:(MAYBE)  3");
                             if (alligators[padNum].GetTargetPad() != lilyPadList.getPadArr()[padNum]) {//Make sure the pad is not currently target by an alligator
-                                System.out.println("SendFrog:(MAYBE)  4");
+                                System.out.println("Sending Frog...");
                                 SendFrog(padNum, 10, difficulty);
                             }
                         }
@@ -148,40 +155,41 @@ public class EnemyList{
             }
             else{
                 if(!bird.isBeingUsed){
+                    System.out.println("Sending Bird...");
                     SendBird(Math.random() < .5); // Decided if the bird is coming from the left or the right 50/50 chance either way
+                }
+                else{
+                    System.out.println("Sending Nothing!!!");
                 }
             }
         }
     }
 
-    public void Draw(SpriteBatch sb) {
+    public void Draw() {
         if(attackingEnemies.GetSize() > 0) {
             for (MyNode<Enemy> curEnemy = attackingEnemies.GetHead(); curEnemy != null; curEnemy = curEnemy.GetNext()) {
 
                 if (!curEnemy.GetObject().isBeingUsed) { // If the enemy has set itself to no longer being used in it's draw method then it is no longer attacking and can be removed from this list
                     attackingEnemies.Remove(curEnemy.GetObject());
                 } else {
-                    curEnemy.GetObject().Draw(sb);
+                    curEnemy.GetObject().Draw();
                 }
             }
         }
+        //UpdateFrogList();
     }
 
-    public void DrawEnemyFrogsOnLayer(int layerNum, SpriteBatch sb){
+
+    /*public void UpdateFrogList(){
         if(enemyFrogs.GetSize() > 0) {
             for (MyNode<EnemyFrog> curEnemy = enemyFrogs.GetHead(); curEnemy != null; curEnemy = curEnemy.GetNext()) {
-                if(curEnemy.GetObject().GetIsAlive()) {
-                    if(curEnemy.GetObject().layer == layerNum) {
-                        curEnemy.GetObject().DrawFrog(sb);
-                    }
-                }
-                else{
+                if(!curEnemy.GetObject().GetIsAlive()) {
                     enemyFrogs.Remove(curEnemy.GetObject());
                 }
             }
         }
 
-    }
+    }*/
 
     public void Reset(){
 
